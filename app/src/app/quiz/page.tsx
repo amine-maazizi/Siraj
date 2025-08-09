@@ -4,6 +4,7 @@ import { useMutation } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { QuizForm } from "@/components/QuizForm";
 
+
 export default function QuizPage(){
   const [docId, setDocId] = useState("");
   const [quiz, setQuiz] = useState<any>(null);
