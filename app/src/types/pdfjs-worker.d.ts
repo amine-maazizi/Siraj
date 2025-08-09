@@ -1,2 +1,3 @@
-// types/pdfjs-worker.d.ts
-declare module "pdfjs-dist/build/pdf.worker.mjs";
+declare module "pdfjs-dist/build/pdf.mjs" {
+  export * from "pdfjs-dist/types/src/pdf";
+}

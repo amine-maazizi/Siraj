@@ -1,6 +1,9 @@
+// app/upload/page.tsx
 "use client";
 
 import { useState } from "react";
+import { usePdfStore } from "@/lib/pdfStore";
+import { savePdf } from "@/lib/pdfDb";
 
 export default function UploadPage() {
   const [file, setFile] = useState<File | null>(null);
@@ -12,22 +15,43 @@ export default function UploadPage() {
     e.preventDefault();
     setErr(null);
     setResult(null);
+
     if (!file) {
       setErr("Choose a PDF first.");
       return;
     }
+
     const form = new FormData();
     form.append("file", file);
 
     setLoading(true);
     try {
-      // proxies to FastAPI: POST /ingest
-      const res = await fetch("/proxy?path=/ingest", { method: "POST", body: form });
+      const res = await fetch("/proxy?path=/ingest", {
+        method: "POST",
+        body: form
+      });
       if (!res.ok) throw new Error(await res.text());
-      const json = await res.json();
-      setResult(json);
+
+      const resp = await res.json();
+
+      await savePdf(resp.doc_id, file);
+
+      usePdfStore.getState().setDoc({
+        docId: resp.doc_id,
+        title: resp.title ?? file.name
+      });
+
+
+      setResult(resp);
+
+      const blobUrl = URL.createObjectURL(file);
+      usePdfStore.getState().setDoc({
+        docId: resp.doc_id,
+        title: resp.title ?? file.name,
+        url: blobUrl // keep local preview; you can swap to backend stream later
+      });
     } catch (e: any) {
-      setErr(e.message ?? "Upload failed");
+      setErr(e?.message ?? "Upload failed");
     } finally {
       setLoading(false);
     }
@@ -36,6 +60,7 @@ export default function UploadPage() {
   return (
     <div className="p-6 max-w-xl mx-auto">
       <h1 className="text-2xl font-semibold mb-4">Upload & Ingest</h1>
+
       <form onSubmit={onSubmit} className="space-y-4">
         <input
           type="file"
@@ -55,6 +80,7 @@ export default function UploadPage() {
       </form>
 
       {err && <p className="text-red-400 mt-4">{err}</p>}
+
       {result && (
         <div className="mt-6 rounded-xl border border-white/10 p-4">
           <p className="opacity-80">Ingested:</p>
