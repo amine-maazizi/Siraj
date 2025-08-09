@@ -1,10 +1,20 @@
+// app/src/app/proxy/route.ts
 import { NextRequest, NextResponse } from "next/server";
 
-export async function GET(req: NextRequest) {
-  const path = req.nextUrl.searchParams.get("path");
-  if(!path) return NextResponse.json({ error: "Missing path" }, { status: 400 });
-  const url = `http://localhost:8000/static?path=${encodeURIComponent(path)}`;
-  const res = await fetch(url);
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
+export async function POST(req: NextRequest) {
+  const url = new URL(req.url);
+  const path = url.searchParams.get("path"); // e.g., "/ingest"
+  if (!path) return new NextResponse("Missing ?path=", { status: 400 });
+
+  const form = await req.formData();
+  const res = await fetch(`${API_BASE}${path}`, { method: "POST", body: form });
+
+  const contentType = res.headers.get("content-type") || "text/plain";
   const buf = await res.arrayBuffer();
-  return new NextResponse(buf, { headers: { "Content-Type": res.headers.get("Content-Type") || "application/octet-stream" }});
+  return new NextResponse(buf, {
+    status: res.status,
+    headers: { "content-type": contentType },
+  });
 }

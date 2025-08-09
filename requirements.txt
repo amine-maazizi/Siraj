@@ -8,6 +8,10 @@ pydantic               # Data validation and settings management using Python ty
 # LangChain + Local LLM (Ollama)
 langchain              # Framework for building applications with LLMs
 langchain-ollama       # LangChain integration with Ollama for local LLM inference
+langchain-community    # Community-driven extensions and improvements for LangChain
+langchain_ollama       # LangChain Ollama module
+langchain_chroma      # LangChain Chroma module
+
 
 # ====================================
 # Storage & Vector DB
@@ -28,7 +32,7 @@ instructor             # Pydantic-based structured output parsing from LLMs
 # (Order matters for some packages)
 # ====================================
 numpy                  # Required numerical computing library (needed before installing aeneas)
-tts[all]               # Coqui TTS for neural text-to-speech synthesis (XTTS v2)
+# tts[all]               # Coqui TTS for neural text-to-speech synthesis (XTTS v2)
 ffmpeg-python          # Python bindings for ffmpeg (audio/video processing)
 moviepy                # Video editing and composition in Python
 pydub                  # Audio manipulation and processing

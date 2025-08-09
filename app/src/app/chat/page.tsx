@@ -12,16 +12,29 @@ export default function ChatPage(){
   const ask = useMutation({
     mutationFn: async () => api.post<{answer:string; citations:{page:number; snippet:string}[]}>("/chat", { doc_id: docId, messages }),
     onSuccess: (res)=>{
-      setMessages(prev=>[...prev, { role:"assistant", content: res.answer }]);
+      // Replace placeholder with real answer
+      setMessages(prev => {
+        const updated = [...prev];
+        const placeholderIndex = updated.findIndex(m => m.role === "assistant" && m.content === "Thinking...");
+        if (placeholderIndex !== -1) {
+          updated[placeholderIndex] = { role: "assistant", content: res.answer };
+        }
+        return updated;
+      });
     }
   });
 
   const send = () => {
     if(!input) return;
-    // naive client-side sentiment cue (placeholder – assume backend logs sentiment)
     const s: "positive"|"neutral"|"negative" = input.includes("?") ? "neutral" : (input.length>120?"negative":"positive");
-    setMessages(prev=>[...prev, { role:"user", content: input, sentiment: s }]);
+
+    // Add user message
+    setMessages(prev => [...prev, { role:"user", content: input, sentiment: s }]);
     setInput("");
+
+    // Add placeholder assistant response right away
+    setMessages(prev => [...prev, { role:"assistant", content: "Thinking..." }]);
+
     ask.mutate();
   };
 
@@ -37,7 +50,12 @@ export default function ChatPage(){
       <div className="s-card p-4 h-[60vh] overflow-auto space-y-3">
         {messages.map((m,i)=> (
           <div key={i} className={m.role==='user'?"text-right":"text-left"}>
-            <div className={"inline-block max-w-[80%] px-4 py-2 rounded-2xl " + (m.role==='user'?"bg-amberGlow text-midnight":"bg-midnight/70 border border-white/10")}>{m.content}</div>
+            <div className={
+              "inline-block max-w-[80%] px-4 py-2 rounded-2xl " + 
+              (m.role==='user' ? "bg-amberGlow text-midnight" : "bg-midnight/70 border border-white/10")
+            }>
+              {m.content}
+            </div>
           </div>
         ))}
       </div>

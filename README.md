@@ -64,4 +64,6 @@ Each project is stored locally as a `.sirajproj` file (SQLite or JSON) containin
 - Dashboard → seeded history + new attempts
 - Brainrot → create 30–45s MP4 with captions
 
----
+## Running tutorial
+- activate venv
+- export OLLAMA_BASE_URL=http://host.docker.internal:11434

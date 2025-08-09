@@ -30,8 +30,8 @@ export default function SummaryPage(){
       <div className="s-card p-4 grid gap-3">
         <input value={docId} onChange={e=>setDocId(e.target.value)} placeholder="Enter doc_id" className="bg-transparent border rounded-xl px-3 py-2 border-white/15"/>
         <div className="flex gap-2">
-          <button onClick={()=>summarize.mutate()} className="s-btn-amber">Generate Text Summary</button>
-          <button onClick={()=>brainrot.mutate()} className="s-btn-amber">Create Brainrot Video</button>
+          <button onClick={()=>summarize.mutate()} className="s-btn-amber">Generate Subject Summary</button>
+          <button onClick={()=>brainrot.mutate()} className="s-btn-amber">💀 Fried Attention Span</button>
         </div>
       </div>
       {summary && (
