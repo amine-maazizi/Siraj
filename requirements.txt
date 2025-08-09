@@ -1,0 +1,44 @@
+# ====================================
+# Core Backend
+# ====================================
+fastapi                # High-performance Python web framework for APIs
+uvicorn                # ASGI server for running FastAPI apps
+pydantic               # Data validation and settings management using Python type hints
+
+# LangChain + Local LLM (Ollama)
+langchain              # Framework for building applications with LLMs
+langchain-ollama       # LangChain integration with Ollama for local LLM inference
+
+# ====================================
+# Storage & Vector DB
+# ====================================
+chromadb               # Local vector database for document embeddings and retrieval
+
+# ====================================
+# Document Parsing / Ingestion
+# ====================================
+pypdf                  # PDF parsing and text extraction
+unstructured           # General document parsing and text extraction for various formats
+pytesseract            # OCR (Optical Character Recognition) for scanned documents
+python-multipart       # Form-data parsing for file uploads
+instructor             # Pydantic-based structured output parsing from LLMs
+
+# ====================================
+# Brainrot: TTS + Video Pipeline
+# (Order matters for some packages)
+# ====================================
+numpy                  # Required numerical computing library (needed before installing aeneas)
+tts[all]               # Coqui TTS for neural text-to-speech synthesis (XTTS v2)
+ffmpeg-python          # Python bindings for ffmpeg (audio/video processing)
+moviepy                # Video editing and composition in Python
+pydub                  # Audio manipulation and processing
+# aeneas                 # Forced alignment between audio and text for captions
+pysubs2                # Subtitle file manipulation (SRT/VTT)
+Pillow                 # Image processing library (used for video overlays, text cards)
+
+# ====================================
+# Sentiment & Emotion Awareness
+# ====================================
+hume                   # Emotion AI API client for advanced sentiment/emotion detection
+torch                  # Deep learning framework (required by many ML models, including TTS)
+vaderSentiment         # Lightweight sentiment analysis for short text

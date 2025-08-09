@@ -1,0 +1,28 @@
+# Python
+.venv/
+venv/
+__pycache__/
+*.pyc
+
+# Node / Next.js
+app/node_modules/
+app/.next/
+app/.vercel/
+
+# Env & local
+.env
+.env.local
+.env.*        # Ignore any environment variants
+*.sirajproj
+SirajProjects/
+server/store/chroma/
+server/media/
+.DS_Store
+
+# Editors
+.vscode/
+.idea/
+
+# Cache & logs
+*.log
+*.cache
