@@ -101,6 +101,16 @@ export default function SummaryPage() {
           <div>Loading docs…</div>
         ) : docsErr ? (
           <div className="text-red-400">Docs error: {String(docsError)}</div>
+        ) : docs.length === 0 ? (
+          <div className="text-center py-4">
+            <div className="text-amber-400 mb-2">📄 No Documents Found</div>
+            <div className="text-gray-300 text-sm mb-3">
+              No documents are available in the current project for summarization.
+            </div>
+            <div className="text-xs text-gray-400">
+              Go to the <strong>Upload</strong> page to add documents to this project, or switch to a different project that contains documents.
+            </div>
+          </div>
         ) : (
           <select
             value={docId}
@@ -119,17 +129,17 @@ export default function SummaryPage() {
 
         <div className="flex gap-2">
           <button
-            disabled={!docId || summarize.isPending}
+            disabled={!docId || summarize.isPending || docs.length === 0}
             onClick={() => summarize.mutate()}
             className="s-btn-amber"
           >
             {summarize.isPending ? "Summarizing…" : "Generate Summary"}
           </button>
           <button
-            disabled={!docId || brainrot.isPending}
+            disabled={!docId || brainrot.isPending || docs.length === 0}
             onClick={() => brainrot.mutate()}
             className="s-btn-amber"
-            title={docId ? "Generate a short memetic video" : "Select a document first"}
+            title={docs.length === 0 ? "No documents available" : docId ? "Generate a short memetic video" : "Select a document first"}
           >
             {brainrot.isPending ? (progress || "Rendering…") : "💀 Fried Attention Span"}
           </button>
@@ -139,48 +149,66 @@ export default function SummaryPage() {
       {/* === Summary Board (Markdown + KaTeX) === */}
       {summary?.summary_sections?.length ? (
         <div className="s-card p-4">
-          <div className="flex items-center justify-between mb-2">
-            <h2 className="text-xl">Summary</h2>
-            <button
-              className="text-xs px-2 py-1 rounded-lg border border-white/10 hover:bg-white/5"
-              onClick={() => {
-                const text = summary.summary_sections
-                  .map((s: any) => `## ${s.title}\n${(s.bullets || []).map((b: string) => `- ${b}`).join("\n")}`)
-                  .join("\n\n");
-                navigator.clipboard.writeText(text).catch(() => {});
-              }}
-            >
-              Copy as Markdown
-            </button>
-          </div>
-
-          <div className="grid gap-4">
-            {summary.summary_sections.map((s: any, i: number) => (
-              <div key={i} className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                <div className="font-medium text-goldHi mb-2">{s.title}</div>
-
-                <div className="grid gap-2">
-                  {(s.bullets ?? []).map((b: string, j: number) => (
-                    <div key={j} className="rounded-xl bg-black/20 px-3 py-2">
-                      <ReactMarkdown
-                        remarkPlugins={[remarkGfm, remarkMath]}
-                        rehypePlugins={[rehypeKatex]}
-                        components={{
-                          p: (props) => <p className="text-sandLight/90 leading-relaxed" {...props} />,
-                          li: (props) => <li className="ml-4 list-disc" {...props} />,
-                          code: (props) => (
-                            <code className="px-1 py-0.5 rounded bg-black/40 text-sandLight/95" {...props} />
-                          ),
-                        }}
-                      >
-                        {b}
-                      </ReactMarkdown>
-                    </div>
-                  ))}
-                </div>
+          {/* Check if this is the "No content found" case */}
+          {summary.summary_sections.length === 1 && 
+           summary.summary_sections[0].bullets.length === 1 && 
+           summary.summary_sections[0].bullets[0] === "No content found." ? (
+            <div className="text-center py-8">
+              <div className="text-amber-400 text-lg mb-2">⚠️ No Content Found</div>
+              <div className="text-gray-300 mb-4">
+                The selected document has no content in the vector database for the current project.
               </div>
-            ))}
-          </div>
+              <div className="text-sm text-gray-400">
+                Make sure the document has been properly uploaded and processed in this project.
+                You may need to upload the document again or switch to a project that contains this document.
+              </div>
+            </div>
+          ) : (
+            <>
+              <div className="flex items-center justify-between mb-2">
+                <h2 className="text-xl">Summary</h2>
+                <button
+                  className="text-xs px-2 py-1 rounded-lg border border-white/10 hover:bg-white/5"
+                  onClick={() => {
+                    const text = summary.summary_sections
+                      .map((s: any) => `## ${s.title}\n${(s.bullets || []).map((b: string) => `- ${b}`).join("\n")}`)
+                      .join("\n\n");
+                    navigator.clipboard.writeText(text).catch(() => {});
+                  }}
+                >
+                  Copy as Markdown
+                </button>
+              </div>
+
+              <div className="grid gap-4">
+                {summary.summary_sections.map((s: any, i: number) => (
+                  <div key={i} className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                    <div className="font-medium text-goldHi mb-2">{s.title}</div>
+
+                    <div className="grid gap-2">
+                      {(s.bullets ?? []).map((b: string, j: number) => (
+                        <div key={j} className="rounded-xl bg-black/20 px-3 py-2">
+                          <ReactMarkdown
+                            remarkPlugins={[remarkGfm, remarkMath]}
+                            rehypePlugins={[rehypeKatex]}
+                            components={{
+                              p: (props) => <p className="text-sandLight/90 leading-relaxed" {...props} />,
+                              li: (props) => <li className="ml-4 list-disc" {...props} />,
+                              code: (props) => (
+                                <code className="px-1 py-0.5 rounded bg-black/40 text-sandLight/95" {...props} />
+                              ),
+                            }}
+                          >
+                            {b}
+                          </ReactMarkdown>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
         </div>
       ) : summary ? (
         <div className="s-card p-4">

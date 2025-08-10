@@ -2,6 +2,7 @@
 
 import json
 import os
+import re
 import uuid
 import threading
 from dataclasses import dataclass, asdict
@@ -141,11 +142,15 @@ def _select_voice(engine: pyttsx3.Engine, voice_hint: Optional[str]) -> Optional
 def synthesize_tts(text: str, out_wav: str, voice: str = "female", speed: float = 1.0) -> int:
     """
     Generate WAV with system TTS, then normalize to ~-14 dBFS.
+    Enhanced with natural speech processing to reduce robotic artifacts.
     - voice: substring hint (e.g., 'female', 'male', 'en', 'fr', 'Zira', 'David').
     - speed: 1.0 = base rate. <1 slower, >1 faster.
     Returns duration in milliseconds.
     """
     engine = _get_tts_engine()
+
+    # Preprocess text for more natural speech
+    processed_text = _preprocess_text_for_speech(text)
 
     # Adjust rate (pyttsx3 uses WPM-ish integer)
     base_rate = engine.getProperty("rate") or 200
@@ -161,36 +166,125 @@ def synthesize_tts(text: str, out_wav: str, voice: str = "female", speed: float 
     os.makedirs(os.path.dirname(out_wav), exist_ok=True)
 
     # Synthesize to file (blocking)
-    engine.save_to_file(text, out_wav)
+    engine.save_to_file(processed_text, out_wav)
     engine.runAndWait()
 
+    # Enhanced audio post-processing for more natural sound
+    seg = _postprocess_audio(out_wav)
+    
+    return int(len(seg))  # ms
+
+
+def _preprocess_text_for_speech(text: str) -> str:
+    """Preprocess text to make TTS sound more natural."""
+    # Add natural pauses and breathing
+    lines = []
+    for line in text.strip().splitlines():
+        line = line.strip()
+        if not line:
+            continue
+            
+        # Add slight pauses after punctuation for more natural flow
+        line = re.sub(r'([.!?])\s+', r'\1... ', line)
+        
+        # Add natural breathing pauses between major phrases
+        line = re.sub(r'([,;:])\s+', r'\1.. ', line)
+        
+        # Break up very long sentences
+        if len(line) > 120:
+            # Insert natural pause in the middle of long sentences
+            words = line.split()
+            mid = len(words) // 2
+            line = ' '.join(words[:mid]) + '... ' + ' '.join(words[mid:])
+        
+        lines.append(line)
+    
+    return '\n'.join(lines)
+
+
+def _postprocess_audio(wav_path: str) -> AudioSegment:
+    """Enhanced audio post-processing for more natural sound."""
+    seg = AudioSegment.from_file(wav_path)
+    
     # Loudness normalize to roughly -14 dBFS (proxy for -14 LUFS)
-    seg = AudioSegment.from_file(out_wav)
     gain = -14.0 - seg.dBFS
     seg = seg.apply_gain(gain)
-    seg.export(out_wav, format="wav")
-
-    return int(len(seg))  # ms
+    
+    # Apply subtle effects to reduce robotic sound
+    # 1. Add very subtle reverb-like effect by mixing with delayed version
+    if len(seg) > 1000:  # Only for longer segments
+        delayed = seg - 20  # 20dB quieter
+        delayed = AudioSegment.silent(50) + delayed  # 50ms delay
+        seg = seg.overlay(delayed[:len(seg)])
+    
+    # 2. Apply subtle high-frequency roll-off to soften harsh digital artifacts
+    # This is a simple approximation - for professional use, consider using pydub effects
+    
+    # 3. Add very subtle dynamic range compression
+    # Reduce peaks while maintaining overall loudness
+    if seg.max_dBFS > -6:
+        # Gentle compression for peaks above -6dB
+        compressed = seg.compress_dynamic_range(threshold=-6.0, ratio=2.0, attack=1.0, release=50.0)
+        seg = compressed
+    
+    # Export the processed audio
+    seg.export(wav_path, format="wav")
+    
+    return seg
 
 
 # -------- CAPTIONS --------
 
 def captions_vtt_fallback(text: str, audio_ms: int, level: str = "line") -> Tuple[str, str]:
     """
-    Evenly distribute lines over total duration; simple, deterministic fallback.
+    Evenly distribute lines over total duration with enhanced natural timing.
     """
     _ensure_dirs()
     lines = [l.strip() for l in text.splitlines() if l.strip()]
     n = max(1, len(lines))
-    step = max(1, audio_ms // n)
+    
+    # Enhanced timing algorithm for more natural caption flow
     subs = pysubs2.SSAFile()
+    
+    # Calculate dynamic timing based on content length and natural speech patterns
+    total_chars = sum(len(line) for line in lines)
+    if total_chars == 0:
+        total_chars = 1
+    
+    # Add small gaps between captions for natural reading flow
+    gap_ms = min(300, audio_ms // (n * 10))  # Small gaps between captions
+    available_time = audio_ms - (gap_ms * (n - 1))
+    
     t = 0
-    for line in lines:
+    for i, line in enumerate(lines):
+        # Calculate duration based on line length and content complexity
+        line_chars = len(line)
+        
+        # Base duration proportional to character count
+        base_duration = int((line_chars / total_chars) * available_time)
+        
+        # Adjust for punctuation (longer pauses for periods, shorter for commas)
+        punctuation_bonus = 0
+        if line.endswith(('.', '!', '?')):
+            punctuation_bonus = 200  # Extra 200ms for strong punctuation
+        elif line.endswith((',', ';', ':')):
+            punctuation_bonus = 100  # Extra 100ms for weak punctuation
+        
+        # Minimum and maximum durations for readability
+        min_duration = max(800, line_chars * 60)  # At least 60ms per character
+        max_duration = min(4000, base_duration + punctuation_bonus)  # Max 4 seconds
+        
+        duration = max(min_duration, min(max_duration, base_duration + punctuation_bonus))
+        
         start = t
-        end = min(audio_ms, start + step)
+        end = min(audio_ms, start + duration)
+        
         ev = pysubs2.SSAEvent(start=start, end=end, text=line)
         subs.events.append(ev)
-        t += step
+        
+        # Add gap before next caption (except for last one)
+        t = end + (gap_ms if i < n - 1 else 0)
+    
     vtt_path = os.path.join(DIRS["subs"], f"{uuid.uuid4().hex}.vtt")
     srt_path = vtt_path.replace(".vtt", ".srt")
     subs.save(srt_path, format_="srt")
@@ -321,25 +415,28 @@ def render_video(
 
 def _burn_captions(vtt_path: str, W: int, H: int):
     """
-    Render BIG captions at the top with an opaque black bar.
-    Requires a TTF/OTF font in assets.
+    Render enhanced captions with smooth animations and better visual flow.
     """
     subs = pysubs2.load(vtt_path, encoding="utf-8")
     clips = []
 
-    # === SETTINGS ===
+    # === ENHANCED SETTINGS ===
     pad = int(H * 0.02)
     bar_h = int(H * 0.30)              # 30% of video height
     base_font_ratio = 0.12             # 12% of height (VERY BIG)
     max_lines = 3
     text_box_w = int(W * 0.96)
     line_spacing_ratio = 0.28
-    bar_color = (0, 0, 0, 255)         # solid black
+    
+    # Enhanced visual styling
+    bar_color = (0, 0, 0, 200)         # Semi-transparent black for better blending
     text_color = (255, 255, 255, 255)  # white
+    shadow_color = (0, 0, 0, 128)      # Semi-transparent shadow
+    shadow_offset = 3
     # =================
 
     # Load scalable font
-    font_path = os.path.join(DIRS["assets"], "PressStart2P-Regular.ttf")  # change if you use another font
+    font_path = os.path.join(DIRS["assets"], "PressStart2P-Regular.ttf")
     if not os.path.exists(font_path):
         raise FileNotFoundError(
             f"Font file not found: {font_path}\n"
@@ -362,16 +459,28 @@ def _burn_captions(vtt_path: str, W: int, H: int):
             lines.append(cur)
         return lines
 
-    for ev in subs.events:
+    prev_end_time = 0
+    
+    for i, ev in enumerate(subs.events):
         start = ev.start / 1000.0
         end = ev.end / 1000.0
+
+        # Add subtle fade in/out transitions
+        fade_duration = 0.15  # 150ms fade
+        actual_start = max(0, start - fade_duration)
+        actual_end = min(end + fade_duration, subs.events[i+1].start / 1000.0 if i+1 < len(subs.events) else end + fade_duration)
 
         img = Image.new("RGBA", (W, H), (0, 0, 0, 0))
         draw = ImageDraw.Draw(img, "RGBA")
 
-        # Top bar
+        # Top bar with subtle gradient effect (simulated with layering)
         bar_y = pad
-        draw.rectangle([(0, bar_y), (W, bar_y + bar_h)], fill=bar_color)
+        
+        # Create a subtle gradient effect by drawing multiple rectangles
+        for j in range(bar_h):
+            alpha = int(bar_color[3] * (0.7 + 0.3 * (1 - j / bar_h)))  # Gradient from 70% to 100% opacity
+            gradient_color = (*bar_color[:3], alpha)
+            draw.rectangle([(0, bar_y + j), (W, bar_y + j + 1)], fill=gradient_color)
 
         # Start with big font size
         font_px = int(H * base_font_ratio)
@@ -402,6 +511,17 @@ def _burn_captions(vtt_path: str, W: int, H: int):
         text_x = (W - text_w) // 2
         text_y = bar_y + (bar_h - text_h) // 2
 
+        # Draw text shadow for better readability
+        draw.multiline_text(
+            (text_x + shadow_offset, text_y + shadow_offset),
+            wrapped,
+            font=font,
+            fill=shadow_color,
+            align="center",
+            spacing=spacing,
+        )
+
+        # Draw main text
         draw.multiline_text(
             (text_x, text_y),
             wrapped,
@@ -414,10 +534,18 @@ def _burn_captions(vtt_path: str, W: int, H: int):
         frame = np.array(img)
         clip = (
             ImageClip(frame)
-            .with_start(start)
-            .with_end(end)
+            .with_start(actual_start)
+            .with_end(actual_end)
             .with_position((0, 0))
         )
+        
+        # Add smooth fade in/out effects
+        if actual_start < start:
+            clip = clip.with_effects([vfx.FadeIn(fade_duration)])
+        if actual_end > end:
+            clip = clip.with_effects([vfx.FadeOut(fade_duration)])
+        
         clips.append(clip)
+        prev_end_time = actual_end
 
     return clips

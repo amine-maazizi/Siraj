@@ -8,6 +8,7 @@ from .review import router as review_router
 from .suggest import router as suggest_router
 from .progress import router as progress_router
 from .brainrot import router as brainrot_router
+from .projects import router as projects_router
 
 api = APIRouter()
 api.include_router(files_router)
@@ -19,7 +20,7 @@ api.include_router(review_router)
 api.include_router(suggest_router)
 api.include_router(progress_router)
 api.include_router(brainrot_router)
-
+api.include_router(projects_router)
 
 #  choco install -y ffmpeg
 # choco install -y espeak

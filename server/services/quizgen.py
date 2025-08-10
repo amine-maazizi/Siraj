@@ -8,13 +8,11 @@ from uuid import uuid4
 
 from pydantic import BaseModel, Field
 
-from ..services.vectorstore import get_vectordb
+from ..deps import get_vectordb
 from ..services.llm import OllamaGenerateClient
 from ..config import (
-    CHROMA_DIR,
     OLLAMA_BASE_URL,
     OLLAMA_LLM_MODEL,
-    OLLAMA_EMBED_MODEL,
 )
 
 # -----------------------------
@@ -170,11 +168,7 @@ def _fallback_quiz(context: str, doc_id: str, n_questions: int = 10) -> QuizSpec
 
 def generate_quiz_from_doc(doc_id: str, n_questions: int = 10) -> QuizSpec:
     # 1) Gather RAG context
-    db = get_vectordb(
-        persist_directory=str(CHROMA_DIR),
-        base_url=OLLAMA_BASE_URL,
-        embed_model=OLLAMA_EMBED_MODEL,
-    )
+    db = get_vectordb()
 
     # Pull a diverse slate of chunks; widen if empty
     hits = db.similarity_search_with_score(

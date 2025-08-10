@@ -229,6 +229,9 @@ def grade(req: GradeRequest):
             )
         )
     
+    # Calculate score after processing all questions
+    score = round((total_correct / max(1, len(questions))) * 100.0, 1)
+    
     attempt_id = f"{req.quiz_id}:{uuid.uuid4()}"
     per_question_for_suggest = []
     for r in per_q_results:
@@ -251,8 +254,6 @@ def grade(req: GradeRequest):
         score=score,
         per_question=per_question_for_suggest
     )
-
-    score = round((total_correct / max(1, len(questions))) * 100.0, 1)
 
     # 3) Persist attempt
     attempt_payload = {

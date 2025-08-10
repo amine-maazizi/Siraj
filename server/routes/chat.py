@@ -2,10 +2,10 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 from typing import List, Literal, Dict, Any
-from ..services.vectorstore import get_vectordb
+from ..deps import get_vectordb
 from ..services.llm import OllamaGenerateClient
 from ..services.sentiment import classify_sentiment, sentiment_emoji
-from ..config import CHROMA_DIR, OLLAMA_BASE_URL, OLLAMA_LLM_MODEL, OLLAMA_EMBED_MODEL
+from ..config import OLLAMA_BASE_URL, OLLAMA_LLM_MODEL
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 
@@ -63,11 +63,7 @@ def chat(req: ChatRequest):
     emoji = sentiment_emoji(mood)
 
     # 2) Retrieve context from Chroma
-    db = get_vectordb(
-        persist_directory=str(CHROMA_DIR),
-        base_url=OLLAMA_BASE_URL,
-        embed_model=OLLAMA_EMBED_MODEL,
-    )
+    db = get_vectordb()
     query_text = user_text or req.messages[-1].content
     results = db.similarity_search_with_score(query_text, k=4, filter={"doc_id": req.doc_id})
 

@@ -105,7 +105,7 @@ export default function UploadPage() {
           setDragOver(false);
           onFilePicked(e.dataTransfer.files?.[0] ?? null);
         }}
-        className={`p-6 border border-dashed rounded-xl transition-all ${
+        className={`p-6 border border-dashed rounded-xl transition-all bg-midnight/60 ${
           dragOver ? "border-amber-400 bg-amber-400/10" : "border-white/20"
         }`}
       >

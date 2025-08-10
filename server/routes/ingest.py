@@ -7,9 +7,9 @@ from pypdf import PdfReader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 
 from ..schemas import IngestResponse
-from ..services.vectorstore import get_vectordb
+from ..deps import get_vectordb
 from ..config import (
-    PROJECTS_DIR, DEFAULT_PROJECT, CHROMA_DIR,
+    PROJECTS_DIR, DEFAULT_PROJECT,
     OLLAMA_BASE_URL, OLLAMA_EMBED_MODEL,
 )
 
@@ -56,11 +56,7 @@ async def ingest(file: UploadFile = File(...)):
     )
 
     # 4) Vector store
-    vectordb = get_vectordb(
-        persist_directory=str(CHROMA_DIR),
-        base_url=OLLAMA_BASE_URL,
-        embed_model=OLLAMA_EMBED_MODEL,
-    )
+    vectordb = get_vectordb()
 
     # 5) Add texts with doc_id + chunk_index
     doc_id = f"doc_{uuid.uuid4().hex[:8]}"

@@ -94,6 +94,10 @@ def brainrot_stream(job_id: str):
 
 @router.get("/{job_id}.vtt")
 def brainrot_vtt(job_id: str):
+    # Remove .vtt extension if it's included in the job_id
+    if job_id.endswith('.vtt'):
+        job_id = job_id[:-4]
+    
     m = load_manifest(job_id)
     if not m.vtt_path or not os.path.exists(m.vtt_path):
         raise HTTPException(404, "Captions not found. Did you call /captions?")

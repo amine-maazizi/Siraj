@@ -1,7 +1,7 @@
 # server/routes/summarize.py
 from fastapi import APIRouter, HTTPException
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from ..deps import vectordb, embedding_fn
+from ..deps import get_vectordb, get_embedding_fn
 from server.services.llm import OllamaGenerateClient
 import time
 
@@ -34,7 +34,7 @@ def summarize(body: dict):
 
     seed = "high level summary of this document"
     top_k = 18
-    chunks = vectordb.similarity_search(seed, k=top_k, filter={"doc_id": doc_id})
+    chunks = get_vectordb().similarity_search(seed, k=top_k, filter={"doc_id": doc_id})
 
     if not chunks:
         return {"summary_sections": [{"title": "Summary", "bullets": ["No content found."]}]}
