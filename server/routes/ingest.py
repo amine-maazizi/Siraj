@@ -1,3 +1,4 @@
+# server/routes/ingest.py
 import uuid
 from typing import List
 from pathlib import Path
@@ -20,8 +21,10 @@ async def ingest(file: UploadFile = File(...)):
     if not name.lower().endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Only PDF files are supported")
 
-    # 1) Save PDF
-    save_path = PROJECTS_DIR / DEFAULT_PROJECT / "resources" / name
+    # 1) Save PDF (make sure dirs exist)
+    proj_dir = PROJECTS_DIR / DEFAULT_PROJECT / "resources"
+    proj_dir.mkdir(parents=True, exist_ok=True)
+    save_path = proj_dir / name
     try:
         with open(save_path, "wb") as f:
             f.write(await file.read())
@@ -39,7 +42,6 @@ async def ingest(file: UploadFile = File(...)):
         pages_text.append(page.extract_text() or "")
     full_text = "\n".join(pages_text).strip()
     total_pages = len(reader.pages)
-
     if not full_text:
         raise HTTPException(status_code=422, detail="No extractable text in PDF.")
 
@@ -47,7 +49,11 @@ async def ingest(file: UploadFile = File(...)):
     splitter = RecursiveCharacterTextSplitter(
         chunk_size=1200, chunk_overlap=150, separators=["\n\n", "\n", " ", ""]
     )
-    docs = splitter.create_documents([full_text], metadatas=[{"source": str(save_path)}])
+    # seed metadata with source, title now
+    docs = splitter.create_documents(
+        [full_text],
+        metadatas=[{"source": str(save_path), "title": name}],
+    )
 
     # 4) Vector store
     vectordb = get_vectordb(
@@ -56,10 +62,15 @@ async def ingest(file: UploadFile = File(...)):
         embed_model=OLLAMA_EMBED_MODEL,
     )
 
-    # 5) Add texts
+    # 5) Add texts with doc_id + chunk_index
     doc_id = f"doc_{uuid.uuid4().hex[:8]}"
     for i, d in enumerate(docs):
-        d.metadata.update({"doc_id": doc_id, "chunk_index": i})
+        d.metadata.update({
+            "doc_id": doc_id,
+            "chunk_index": i,
+            # keep title in every chunk so /docs can find it reliably
+            "title": name,
+        })
 
     vectordb.add_texts(
         [d.page_content for d in docs],

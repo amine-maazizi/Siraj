@@ -4,6 +4,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from .routes.ingest import router as ingest_router
 from .routes.summarize import router as summarize_router
 from .routes.files import router as files_router
+from .docs import router as documents_router
+
 
 
 app = FastAPI(title="Siraj API")
@@ -17,7 +19,8 @@ app.add_middleware(
 )
 
 app.include_router(files_router)
-
+app.include_router(documents_router)
+app.include_router(summarize_router)
 
 @app.get("/health")
 def health():

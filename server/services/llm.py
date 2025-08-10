@@ -1,26 +1,24 @@
-import requests
+# server/services/llm.py
 from fastapi import HTTPException
+from ollama import Client
 
 class OllamaGenerateClient:
-    def __init__(self, model: str, base_url: str):
+    def __init__(self, model: str, host: str | None = None):
         self.model = model
-        self.base_url = base_url.rstrip("/")
+        # If host is None, Client() uses OLLAMA_HOST env or the default localhost:11434
+        self.client = Client(host=host) if host else Client()
 
     def generate(self, prompt: str, temperature: float = 0.2, num_predict: int = 512) -> str:
         try:
-            r = requests.post(
-                f"{self.base_url}/api/generate",
-                json={
-                    "model": self.model,
-                    "prompt": prompt,
-                    "stream": False,
-                    "options": {"temperature": temperature, "num_predict": num_predict},
+            result = self.client.generate(
+                model=self.model,
+                prompt=prompt,
+                options={
+                    "temperature": temperature,
+                    "num_predict": num_predict,
                 },
-                timeout=120,
-                headers={"Content-Type": "application/json"},
+                stream=False,
             )
-            r.raise_for_status()
-            data = r.json()
-            return data.get("response", "").strip()
+            return (result.get("response") or "").strip()
         except Exception as e:
             raise HTTPException(status_code=502, detail=f"LLM generate error: {e}")

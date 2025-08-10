@@ -1,80 +1,72 @@
-from typing import List
+# server/routes/summarize.py
 from fastapi import APIRouter, HTTPException
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from ..deps import vectordb, embedding_fn
+from server.services.llm import OllamaGenerateClient
+import time
 
-from ..services.llm import OllamaGenerateClient
-from ..services.vectorstore import get_vectordb
-from ..schemas import SummarizeRequest, SummarizeResponse, SummarySection
-from ..utils.json import safe_json_parse
-from ..config import (
-    CHROMA_DIR, OLLAMA_BASE_URL, OLLAMA_EMBED_MODEL, OLLAMA_LLM_MODEL,
-    SUMMARIZE_TOPK, SUMMARIZE_MAX_MAP_CHUNKS,
-)
+router = APIRouter()
 
-router = APIRouter(prefix="/summarize", tags=["summarize"])
+# Use the model you actually pulled. You pulled "llama3.1", so use that.
+ollama = OllamaGenerateClient(model="llama3.1", host="http://127.0.0.1:11434")
 
-@router.post("", response_model=SummarizeResponse)
-def summarize(req: SummarizeRequest):
-    vectordb = get_vectordb(
-        persist_directory=str(CHROMA_DIR),
-        base_url=OLLAMA_BASE_URL,
-        embed_model=OLLAMA_EMBED_MODEL,
-    )
+MAP_PROMPT = """You are a teaching assistant. Read the excerpt and produce 2-3 tight bullets capturing the *essential* facts. No fluff, no repetition.
+Excerpt:
+---
+{chunk}
+---
+Bullets:"""
 
-    docs = vectordb.similarity_search(
-        "Summarize this document.",
-        k=SUMMARIZE_TOPK,
-        filter={"doc_id": req.doc_id},
-    )
-    if not docs:
-        raise HTTPException(status_code=404, detail=f"No chunks found for doc_id={req.doc_id}")
+REDUCE_PROMPT = """Combine the following mini-bullets into a single concise summary with 3-5 bullets total. Merge duplicates, keep it high-level and factual.
+Mini-bullets:
+---
+{points}
+---
+Final 3-5 bullets:"""
 
-    try:
-        docs.sort(key=lambda d: int(d.metadata.get("chunk_index", 0)))
-    except Exception:
-        pass
+@router.post("/summarize")
+def summarize(body: dict):
+    doc_id = body.get("doc_id")
+    if not doc_id:
+        raise HTTPException(400, "doc_id required")
 
-    llm = OllamaGenerateClient(model=OLLAMA_LLM_MODEL, base_url=OLLAMA_BASE_URL)
+    t0 = time.time()
 
-    map_prompt_tpl = (
-        "You are a concise teaching assistant.\n"
-        "From the following document chunk, extract 2–3 essential bullet points.\n"
-        "Return only plain bullets, one per line, no numbering, no explanations.\n\n"
-        "Chunk:\n\"\"\"\n{chunk}\n\"\"\"\n"
-    )
+    seed = "high level summary of this document"
+    top_k = 18
+    chunks = vectordb.similarity_search(seed, k=top_k, filter={"doc_id": doc_id})
 
-    partial_bullets: List[str] = []
-    for d in docs[:SUMMARIZE_MAX_MAP_CHUNKS]:
-        prompt = map_prompt_tpl.format(chunk=d.page_content[:4000])
-        out = llm.generate(prompt, temperature=0.1, num_predict=256)
-        for line in out.splitlines():
-            line = line.strip().lstrip("-•* ").strip()
-            if line:
-                partial_bullets.append(line)
+    if not chunks:
+        return {"summary_sections": [{"title": "Summary", "bullets": ["No content found."]}]}
 
-    if not partial_bullets:
-        raise HTTPException(status_code=500, detail="Map step produced no content.")
+    bullets = []
+    with ThreadPoolExecutor(max_workers=6) as ex:
+        futures = [
+            ex.submit(
+                ollama.generate,
+                MAP_PROMPT.format(chunk=c.page_content[:1200]),
+                0.2,
+                220,
+            )
+            for c in chunks
+        ]
+        for f in as_completed(futures):
+            try:
+                bullets.append(f.result())
+            except Exception:
+                pass
 
-    reduce_prompt = (
-        "You are a teaching assistant. Combine the following bullets into a concise, sectioned summary.\n"
-        "Constraints:\n"
-        "- Create 3–5 sections total.\n"
-        "- Each section has a short title and 3–5 bullets (clear, factual, non-redundant).\n"
-        "- Output STRICT JSON with this schema only:\n"
-        '{ "summary_sections": [ { "title": "string", "bullets": ["string", "..."] }, "..."] }\n\n'
-        "Bullets:\n"
-        + "\n".join([f"- {b}" for b in partial_bullets[:300]])
-        + "\n\nReturn ONLY the JSON."
-    )
+    if time.time() - t0 > 25 and bullets:
+        bullets = bullets[:12]
 
-    reduced_text = llm.generate(reduce_prompt, temperature=0.2, num_predict=768)
-    data = safe_json_parse(reduced_text)
-    if not data or "summary_sections" not in data:
-        fallback = SummarySection(title="Summary", bullets=partial_bullets[:8])
-        return SummarizeResponse(summary_sections=[fallback])
+    reduce_text = "\n".join(bullets) if bullets else "No points."
+    final = ollama.generate(REDUCE_PROMPT.format(points=reduce_text), 0.2, 260)
 
-    try:
-        sections = [SummarySection(**s) for s in data["summary_sections"]]
-    except Exception:
-        sections = [SummarySection(title="Summary", bullets=partial_bullets[:8])]
-
-    return SummarizeResponse(summary_sections=sections)
+    return {
+        "summary_sections": [
+            {
+                "title": "Summary",
+                "bullets": [b.strip("-• ").strip() for b in final.split("\n") if b.strip()][:5],
+            }
+        ]
+    }

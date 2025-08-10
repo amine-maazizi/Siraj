@@ -1,5 +1,6 @@
 import "./globals.css";
 import type { ReactNode } from "react";
+import "katex/dist/katex.min.css";
 import Providers from "./providers";
 import { Sidebar } from "@/components/Sidebar";
 import { Topbar } from "@/components/Topbar";

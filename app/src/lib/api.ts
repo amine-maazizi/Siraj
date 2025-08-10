@@ -6,7 +6,20 @@ async function request<T>(path: string, init: RequestInit): Promise<T> {
   return res.headers.get("content-type")?.includes("application/json") ? await res.json() : (await res.text() as any);
 }
 
+// app/src/lib/api.ts
 export const api = {
-  get: <T=any>(path: string) => request<T>(path, { method: "GET" }),
-  post: <T=any>(path: string, body?: any, isForm=false) => request<T>(path, { method: "POST", body: isForm? body: JSON.stringify(body), headers: isForm? undefined: { "Content-Type": "application/json" } })
+  get: async <T=any>(path: string): Promise<T> => {
+    const r = await fetch(`/proxy?path=${encodeURIComponent(path)}`, { method: "GET" });
+    if (!r.ok) throw new Error(`GET ${path} -> ${r.status}`);
+    return r.json();
+  },
+  post: async <T=any>(path: string, body?: any): Promise<T> => {
+    const r = await fetch(`/proxy?path=${encodeURIComponent(path)}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body ?? {}),
+    });
+    if (!r.ok) throw new Error(`POST ${path} -> ${r.status}`);
+    return r.json();
+  },
 };
