@@ -12,7 +12,8 @@ import rehypeKatex from "rehype-katex";
 export default function SummaryPage() {
   const [docId, setDocId] = useState("");
   const [summary, setSummary] = useState<any>(null);
-  const [video, setVideo] = useState<{ mp4?: string; vtt?: string }>({});
+  const [video, setVideo] = useState<{ jobId?: string; mp4?: string; vtt?: string }>({});
+  const [progress, setProgress] = useState<string>("");
 
   const { data: rawDocs = [], isLoading: docsLoading, isError: docsErr, error: docsError } = useQuery({
     queryKey: ["docs"],
@@ -38,35 +39,55 @@ export default function SummaryPage() {
 
   const brainrot = useMutation({
     mutationFn: async () => {
+      if (!docId) throw new Error("Pick a document first.");
+
+      setVideo({});
+      setProgress("Drafting script…");
       const s = await api.post<{ job_id: string; summary_text: string }>("/brainrot/summary", {
         doc_id: docId,
         style: "tldr",
         duration_sec: 30,
       });
-      const t = await api.post<{ audio_path: string; duration_ms: number }>("/brainrot/tts", {
-        job_id: s.job_id,
+
+      const jobId = s.job_id;
+      if (!jobId) throw new Error("No job_id returned from /brainrot/summary");
+
+      setProgress("Synthesizing voice…");
+      await api.post("/brainrot/tts", {
+        job_id: jobId,
         text: s.summary_text,
+        voice: "en_female_1",
+        speed: 1.0,
       });
-      const c = await api.post<{ vtt_path: string }>("/brainrot/captions", {
-        job_id: s.job_id,
-        audio_path: t.audio_path,
+
+      setProgress("Timing captions…");
+      await api.post("/brainrot/captions", {
+        job_id: jobId,
         text: s.summary_text,
+        level: "line",
       });
-      const r = await api.post<{ video_path: string }>("/brainrot/render", {
-        job_id: s.job_id,
-        audio_path: t.audio_path,
-        vtt_path: c.vtt_path,
+
+      setProgress("Rendering video…");
+      await api.post("/brainrot/render", {
+        job_id: jobId,
         aspect: "9:16",
+        include_waveform: false,
         theme: "siraj",
-        include_waveform: true,
       });
+
+      // Use pretty routes from your FastAPI:
+      // GET /brainrot/{job_id} -> mp4
+      // GET /brainrot/{job_id}.vtt -> captions
       setVideo({
-        mp4: `/proxy?path=${encodeURIComponent(r.video_path)}`,
-        vtt: `/proxy?path=${encodeURIComponent(c.vtt_path)}`,
+        jobId,
+        mp4: `/proxy?path=${encodeURIComponent(`/brainrot/${jobId}`)}`,
+        vtt: `/proxy?path=${encodeURIComponent(`/brainrot/${jobId}.vtt`)}`,
       });
+      setProgress("");
     },
     onError: (e: any) => {
       console.error("[SummaryPage] brainrot error:", e);
+      setProgress("");
       alert(`Brainrot failed: ${e?.message ?? "unknown error"}`);
     },
   });
@@ -108,8 +129,9 @@ export default function SummaryPage() {
             disabled={!docId || brainrot.isPending}
             onClick={() => brainrot.mutate()}
             className="s-btn-amber"
+            title={docId ? "Generate a short memetic video" : "Select a document first"}
           >
-            {brainrot.isPending ? "Rendering…" : "💀 Fried Attention Span"}
+            {brainrot.isPending ? (progress || "Rendering…") : "💀 Fried Attention Span"}
           </button>
         </div>
       </div>
@@ -137,14 +159,12 @@ export default function SummaryPage() {
               <div key={i} className="rounded-2xl border border-white/10 bg-white/5 p-4">
                 <div className="font-medium text-goldHi mb-2">{s.title}</div>
 
-                {/* Each bullet rendered as Markdown+Math */}
                 <div className="grid gap-2">
                   {(s.bullets ?? []).map((b: string, j: number) => (
                     <div key={j} className="rounded-xl bg-black/20 px-3 py-2">
                       <ReactMarkdown
                         remarkPlugins={[remarkGfm, remarkMath]}
                         rehypePlugins={[rehypeKatex]}
-                        // Optional: tweak elements for Siraj style
                         components={{
                           p: (props) => <p className="text-sandLight/90 leading-relaxed" {...props} />,
                           li: (props) => <li className="ml-4 list-disc" {...props} />,
@@ -172,6 +192,7 @@ export default function SummaryPage() {
         </div>
       ) : null}
 
+      {/* === Video Panel === */}
       {video.mp4 && (
         <div className="s-card p-3">
           <VideoPlayer src={video.mp4} vttSrc={video.vtt} />

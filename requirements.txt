@@ -44,6 +44,7 @@ pydub                  # Audio manipulation and processing
 # aeneas                 # Forced alignment between audio and text for captions
 pysubs2                # Subtitle file manipulation (SRT/VTT)
 Pillow                 # Image processing library (used for video overlays, text cards)
+pyttsx3                # Text-to-speech conversion library
 
 # ====================================
 # Sentiment & Emotion Awareness
