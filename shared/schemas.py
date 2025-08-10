@@ -34,7 +34,9 @@ class ChatRequest(BaseModel):
 
 class ChatResponse(BaseModel):
     answer: str
-    citations: List[ChatCitation] = Field(default_factory=list)
+    citations: List[ChatCitation]
+    sentiment: Literal["positive","neutral","negative"]
+    emoji: str
 
 # ---- Quiz
 class QuizOption(BaseModel):

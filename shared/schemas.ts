@@ -36,6 +36,8 @@ export const ChatRequest = z.object({
 export const ChatResponse = z.object({
   answer: z.string(),
   citations: z.array(ChatCitation).default([]),
+  sentiment: z.enum(["positive", "neutral", "negative"]).default("neutral"),
+  emoji: z.string().default("🙂"),
 });
 export type ChatRequest = z.infer<typeof ChatRequest>;
 export type ChatResponse = z.infer<typeof ChatResponse>;

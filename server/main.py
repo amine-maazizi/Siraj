@@ -1,10 +1,9 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from .routes.ingest import router as ingest_router
-from .routes.summarize import router as summarize_router
 from .routes.files import router as files_router
 from .docs import router as documents_router
+from .routes import api as api_router
 
 
 
@@ -18,14 +17,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(api_router)
 app.include_router(files_router)
 app.include_router(documents_router)
-app.include_router(summarize_router)
 
 @app.get("/health")
 def health():
     return {"ok": True}
 
-# Mount feature routers
-app.include_router(ingest_router)
-app.include_router(summarize_router)
