@@ -91,30 +91,18 @@ export const QuizGradeResponse = z.object({
 
 
 // ---- Progress
-export const ProgressTotals = z.object({
-  docs: z.number(),
-  quizzes: z.number(),
-  avgScore: z.number(),
-});
-export const ProgressHistoryPoint = z.object({
-  date: z.string(),
-  score: z.number(),
-});
-export const ProgressSkill = z.object({
-  name: z.string(),
-  level: z.number(),
-});
-export const ProgressGap = z.object({
-  topic: z.string(),
-  note: z.string(),
-});
-export const ProgressResponse = z.object({
-  totals: ProgressTotals,
-  history: z.array(ProgressHistoryPoint),
-  skills: z.array(ProgressSkill),
-  gaps: z.array(ProgressGap),
-});
-export type ProgressResponse = z.infer<typeof ProgressResponse>;
+export type ProgressHistoryItem = { date: string; score: number; doc?: string; attempt_id?: number };
+export type ProgressTotals = { docs: number; quizzes: number; avgScore: number; streak: number; trendDelta: number };
+export type ProgressGap = { topic: string; note?: string };
+export type ProgressSkill = { name: string; level: number };
+
+export type ProgressResponse = {
+  totals: ProgressTotals;
+  history: ProgressHistoryItem[];
+  skills: ProgressSkill[];
+  gaps: ProgressGap[];
+  review: string;
+};
 
 // ---- Suggestions
 export const SuggestRequest = z.object({

@@ -51,3 +51,5 @@ Pillow                 # Image processing library (used for video overlays, text
 hume                   # Emotion AI API client for advanced sentiment/emotion detection
 torch                  # Deep learning framework (required by many ML models, including TTS)
 vaderSentiment         # Lightweight sentiment analysis for short text
+
+
