@@ -8,15 +8,24 @@ class OllamaGenerateClient:
         # If host is None, Client() uses OLLAMA_HOST env or the default localhost:11434
         self.client = Client(host=host) if host else Client()
 
-    def generate(self, prompt: str, temperature: float = 0.2, num_predict: int = 512) -> str:
+    def generate(
+        self,
+        prompt: str,
+        temperature: float = 0.2,
+        num_predict: int = 512,
+        options: dict | None = None,
+    ) -> str:
         try:
+            base_opts = {
+                "temperature": temperature,
+                "num_predict": num_predict,
+            }
+            if options:
+                base_opts.update(options)
             result = self.client.generate(
                 model=self.model,
                 prompt=prompt,
-                options={
-                    "temperature": temperature,
-                    "num_predict": num_predict,
-                },
+                options=base_opts,
                 stream=False,
             )
             return (result.get("response") or "").strip()

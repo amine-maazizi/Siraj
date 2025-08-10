@@ -50,37 +50,45 @@ export const QuizQuestion = z.object({
   options: z.array(QuizOption),
   multi: z.boolean().default(true),
 });
+
 export const QuizGenerateRequest = z.object({
   doc_id: z.string(),
-  n_questions: z.number().default(6),
+  n_questions: z.number().default(10),
   type: z.literal("checkbox").default("checkbox"),
 });
 export const QuizGenerateResponse = z.object({
   quiz_id: z.string(),
   questions: z.array(QuizQuestion),
 });
-export type QuizGenerateRequest = z.infer<typeof QuizGenerateRequest>;
-export type QuizGenerateResponse = z.infer<typeof QuizGenerateResponse>;
 
 export const QuizAnswer = z.object({
   question_id: z.string(),
   option_ids: z.array(z.string()),
 });
-export const QuizGradeRequest = z.object({
-  quiz_id: z.string(),
-  answers: z.array(QuizAnswer),
+
+export const PerOptionResult = z.object({
+  id: z.string(),
+  text: z.string(),
+  selected: z.boolean(),
+  correct: z.boolean(),
 });
+
 export const PerQuestionResult = z.object({
   id: z.string(),
   correct_option_ids: z.array(z.string()),
   rationale: z.string(),
+  options: z.array(PerOptionResult),
+});
+
+export const QuizGradeRequest = z.object({
+  quiz_id: z.string(),
+  answers: z.array(QuizAnswer),
 });
 export const QuizGradeResponse = z.object({
   score: z.number(),
   per_question: z.array(PerQuestionResult),
 });
-export type QuizGradeRequest = z.infer<typeof QuizGradeRequest>;
-export type QuizGradeResponse = z.infer<typeof QuizGradeResponse>;
+
 
 // ---- Progress
 export const ProgressTotals = z.object({
