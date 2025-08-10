@@ -19,6 +19,11 @@ langchain_chroma      # LangChain Chroma module
 chromadb               # Local vector database for document embeddings and retrieval
 
 # ====================================
+# Web search
+# ====================================
+ddgs      # Python wrapper for DuckDuckGo search API
+
+# ====================================
 # Document Parsing / Ingestion
 # ====================================
 pypdf                  # PDF parsing and text extraction

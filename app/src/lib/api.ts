@@ -8,12 +8,12 @@ async function request<T>(path: string, init: RequestInit): Promise<T> {
 
 // app/src/lib/api.ts
 export const api = {
-  get: async <T=any>(path: string): Promise<T> => {
+  get: async <T = any>(path: string): Promise<T> => {
     const r = await fetch(`/proxy?path=${encodeURIComponent(path)}`, { method: "GET" });
     if (!r.ok) throw new Error(`GET ${path} -> ${r.status}`);
     return r.json();
   },
-  post: async <T=any>(path: string, body?: any): Promise<T> => {
+  post: async <T = any>(path: string, body?: any): Promise<T> => {
     const r = await fetch(`/proxy?path=${encodeURIComponent(path)}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -23,3 +23,4 @@ export const api = {
     return r.json();
   },
 };
+
